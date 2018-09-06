@@ -77,7 +77,8 @@
             offsetX = this.$element.data('inspector-offset-x'),
             offsetY = this.$element.data('inspector-offset-y'),
             placement = this.$element.data('inspector-placement'),
-            fallbackPlacement = this.$element.data('inspector-fallback-placement') 
+            fallbackPlacement = this.$element.data('inspector-fallback-placement'),
+            width = this.$element.data('inspector-width')
 
         if (offset === undefined) {
             offset = 15
@@ -91,6 +92,10 @@
             fallbackPlacement = 'bottom'
         }
 
+        if (width === undefined) {
+            width = 400
+        }
+
         this.$element.ocPopover({
             content: this.getPopoverContents(),
             highlightModalTarget: true,
@@ -102,7 +107,7 @@
             offset: offset,
             offsetX: offsetX,
             offsetY: offsetY,
-            width: 400
+            width: width
         })
 
         this.setInspectorVisibleFlag(true)
