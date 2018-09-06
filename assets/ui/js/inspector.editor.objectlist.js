@@ -195,11 +195,28 @@
         else {
             var firstRow = undefined
 
+            var titlePropertyDropdownText = this.propertyDefinition.titlePropertyDropdownText
+            if (titlePropertyDropdownText === true) {
+                var titlePropertyItem = this.getItemProperty(titleProperty)
+                titlePropertyDropdownText = titlePropertyItem
+            }
+
             for (var key in items) {
                 var item = items[key],
                     itemInspectorValue = this.addKeyProperty(key, item),
-                    itemText = item[titleProperty],
-                    row = this.buildTableRow(itemText, 'rowlink')
+                    itemText = item[titleProperty]
+                if (titlePropertyDropdownText) {
+                    if (titlePropertyDropdownText.options) {
+                        // static options
+                        itemText = titlePropertyDropdownText.options[item[titleProperty]]
+                    } else if (titlePropertyDropdownText.loadOptions) {
+                        // dynamic options
+                        itemText = titlePropertyDropdownText.loadOptions[item[titleProperty]]
+                    } else {
+                        itemText = 'Unknown'
+                    }
+                }
+                var row = this.buildTableRow(itemText, 'rowlink')
 
                 row.setAttribute('data-inspector-values', JSON.stringify(itemInspectorValue))
                 tbody.appendChild(row)
@@ -212,11 +229,32 @@
 
         table.appendChild(tbody)
 
+        this.refreshSortable()
+
         if (firstRow !== undefined) {
             this.selectRow(firstRow, true)
         }
 
         this.updateScrollpads()
+    }
+
+    ObjectListEditor.prototype.refreshSortable = function() {
+        if (this.propertyDefinition.sortable === true) {
+            var $tbody = $(this.getTableBody());
+            if ($tbody.data('oc.sortable')) {
+                // sortable already setup
+                $tbody.sortable('refresh');
+            } else {
+                // make new sortable
+                var placeholder = document.createElement('div');
+                $.oc.foundation.element.addClass(placeholder, 'objectlist_placeholder')
+                $tbody.sortable({
+                    containerSelector: 'tbody',
+                    itemSelector:      'tr.rowlink',
+                    placeholder:       placeholder
+                });
+            }
+        }
     }
 
     ObjectListEditor.prototype.buildEmptyRow = function() {
@@ -322,6 +360,15 @@
         row.setAttribute('data-inspector-values', JSON.stringify(data))
     }
 
+    ObjectListEditor.prototype.getItemProperty = function(property) {
+        for (var index in this.propertyDefinition.itemProperties) {
+            if (this.propertyDefinition.itemProperties[index].property === property) {
+                return this.propertyDefinition.itemProperties[index]
+            }
+        }
+        return null
+    }
+
     ObjectListEditor.prototype.updateRowText = function(property, value) {
         var selectedRow = this.getSelectedRow()
         
@@ -329,8 +376,36 @@
             throw new Exception('A row is not found for the updated data')
         }
 
+        var titlePropertyDropdownText = this.propertyDefinition.titlePropertyDropdownText
+
+        if (property !== this.propertyDefinition.titleProperty) {
+            // Check whether this property is one that the titleProperty depends on and hence
+            // may have caused an update to its value
+            var titlePropertyItem = this.getItemProperty(this.propertyDefinition.titleProperty)
+            if (titlePropertyItem.depends.length > 0) {
+                for (var index = 0; index < titlePropertyItem.depends.length; index++) {
+                    if (titlePropertyItem.depends[index] === property) {
+                        property = this.propertyDefinition.titleProperty
+                        break
+                    }
+                }
+            }
+        }
+
         if (property !== this.propertyDefinition.titleProperty) {
             return
+        }
+
+        if (titlePropertyDropdownText === true) {
+            var propertyCell = this.popup.querySelector('table.inspector-fields tr[data-property="' + property + '"] td')
+            if ($.oc.foundation.element.hasClass(propertyCell, 'dropdown')) {
+                var selectedOption = propertyCell.querySelector('select option[value="' + value + '"]');
+                if (selectedOption === null) {
+                    value = 'Please select'
+                } else {
+                    value = selectedOption.textContent
+                }
+            }
         }
 
         value = $.trim(value)
@@ -392,6 +467,8 @@
         row.setAttribute('data-inspector-values', JSON.stringify(data))
         tbody.appendChild(row)
 
+        this.refreshSortable()
+
         this.selectRow(row, true)
 
         this.removeEmptyRow()
@@ -420,6 +497,8 @@
         else {
             tbody.appendChild(this.buildEmptyRow())
         }
+
+        this.refreshSortable()
 
         this.updateScrollpads()
     }
