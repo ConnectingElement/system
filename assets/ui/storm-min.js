@@ -3669,7 +3669,7 @@ this.$modal.on('hidden.bs.modal',function(){self.triggerEvent('hidden.oc.popup')
 self.$container.remove()
 $(document.body).removeClass('modal-open')
 self.dispose()})
-this.$modal.on('show.bs.modal',function(){self.isOpen=true
+this.$modal.on('show.bs.modal',function(){self.isOpen =true
 self.setBackdrop(true)
 $(document.body).addClass('modal-open')})
 this.$modal.on('shown.bs.modal',function(){self.triggerEvent('shown.oc.popup')})
@@ -5081,11 +5081,12 @@ InspectorPopup.prototype.getPopoverContents=function(){return'<div class="popove
                 <form autocomplete="off" onsubmit="return false">   \
                     <div data-surface-container></div>              \
                 <form>'}
-InspectorPopup.prototype.showPopover=function(){var offset=this.$element.data('inspector-offset'),offsetX=this.$element.data('inspector-offset-x'),offsetY=this.$element.data('inspector-offset-y'),placement=this.$element.data('inspector-placement'),fallbackPlacement=this.$element.data('inspector-fallback-placement')
+InspectorPopup.prototype.showPopover=function(){var offset=this.$element.data('inspector-offset'),offsetX=this.$element.data('inspector-offset-x'),offsetY=this.$element.data('inspector-offset-y'),placement=this.$element.data('inspector-placement'),fallbackPlacement=this.$element.data('inspector-fallback-placement'),width=this.$element.data('inspector-width')
 if(offset===undefined){offset=15}
 if(placement===undefined){placement='bottom'}
 if(fallbackPlacement===undefined){fallbackPlacement='bottom'}
-this.$element.ocPopover({content:this.getPopoverContents(),highlightModalTarget:true,modal:true,placement:placement,fallbackPlacement:fallbackPlacement,containerClass:'control-inspector',container:this.$element.data('inspector-container'),offset:offset,offsetX:offsetX,offsetY:offsetY,width:400})
+if(width===undefined){width=400}
+this.$element.ocPopover({content:this.getPopoverContents(),highlightModalTarget:true,modal:true,placement:placement,fallbackPlacement:fallbackPlacement,containerClass:'control-inspector',container:this.$element.data('inspector-container'),offset:offset,offsetX:offsetX,offsetY:offsetY,width:width})
 this.setInspectorVisibleFlag(true)
 this.popoverObj=this.$element.data('oc.popover')
 this.$popoverContainer=this.popoverObj.$container
@@ -5873,13 +5874,21 @@ ObjectListEditor.prototype.buildItemsTable=function(popup){var table=popup.query
 if(items===undefined||this.getValueKeys(items).length===0){var row=this.buildEmptyRow()
 tbody.appendChild(row)}
 else{var firstRow=undefined
-for(var key in items){var item=items[key],itemInspectorValue=this.addKeyProperty(key,item),itemText=item[titleProperty],row=this.buildTableRow(itemText,'rowlink')
+var titlePropertyDropdownText=this.propertyDefinition.titlePropertyDropdownText
+if(titlePropertyDropdownText===true){var titlePropertyItem=this.getItemProperty(titleProperty)
+titlePropertyDropdownText=titlePropertyItem}
+for(var key in items){var item=items[key],itemInspectorValue=this.addKeyProperty(key,item),itemText=item[titleProperty]
+if(titlePropertyDropdownText){if(titlePropertyDropdownText.options){itemText=titlePropertyDropdownText.options[item[titleProperty]]}else if(titlePropertyDropdownText.loadOptions){itemText=titlePropertyDropdownText.loadOptions[item[titleProperty]]}else{itemText='Unknown'}}
+var row=this.buildTableRow(itemText,'rowlink')
 row.setAttribute('data-inspector-values',JSON.stringify(itemInspectorValue))
 tbody.appendChild(row)
 if(firstRow===undefined){firstRow=row}}}
 table.appendChild(tbody)
+this.refreshSortable()
 if(firstRow!==undefined){this.selectRow(firstRow,true)}
 this.updateScrollpads()}
+ObjectListEditor.prototype.refreshSortable=function(){if(this.propertyDefinition.sortable===true){var $tbody=$(this.getTableBody());if($tbody.data('oc.sortable')){$tbody.sortable('refresh');}else{var placeholder=document.createElement('div');$.oc.foundation.element.addClass(placeholder,'objectlist_placeholder')
+$tbody.sortable({containerSelector:'tbody',itemSelector:'tr.rowlink',placeholder:placeholder});}}}
 ObjectListEditor.prototype.buildEmptyRow=function(){return this.buildTableRow('No items found','no-data','nolink')}
 ObjectListEditor.prototype.removeEmptyRow=function(){var tbody=this.getTableBody(),row=tbody.querySelector('tr.no-data')
 if(row){tbody.removeChild(row)}}
@@ -5908,9 +5917,17 @@ this.currentRowInspector=null}
 ObjectListEditor.prototype.applyDataToRow=function(row){if(this.currentRowInspector===null){return}
 var data=this.currentRowInspector.getValues()
 row.setAttribute('data-inspector-values',JSON.stringify(data))}
+ObjectListEditor.prototype.getItemProperty=function(property){for(var index in this.propertyDefinition.itemProperties){if(this.propertyDefinition.itemProperties[index].property===property){return this.propertyDefinition.itemProperties[index]}}
+return null}
 ObjectListEditor.prototype.updateRowText=function(property,value){var selectedRow=this.getSelectedRow()
 if(!selectedRow){throw new Exception('A row is not found for the updated data')}
+var titlePropertyDropdownText=this.propertyDefinition.titlePropertyDropdownText
+if(property!==this.propertyDefinition.titleProperty){var titlePropertyItem=this.getItemProperty(this.propertyDefinition.titleProperty)
+if(titlePropertyItem.depends.length>0){for(var index=0;index<titlePropertyItem.depends.length;index++){if(titlePropertyItem.depends[index]===property){property=this.propertyDefinition.titleProperty
+break}}}}
 if(property!==this.propertyDefinition.titleProperty){return}
+if(titlePropertyDropdownText===true){var propertyCell=this.popup.querySelector('table.inspector-fields tr[data-property="'+property+'"] td')
+if($.oc.foundation.element.hasClass(propertyCell,'dropdown')){var selectedOption=propertyCell.querySelector('select option[value="'+value+'"]');if(selectedOption===null){value='Please select'}else{value=selectedOption.textContent}}}
 value=$.trim(value)
 if(value.length===0){value='[No title]'
 $.oc.foundation.element.addClass(selectedRow,'disabled')}
@@ -5930,6 +5947,7 @@ var title='New item',row=this.buildTableRow(title,'rowlink active'),tbody=this.g
 data[this.propertyDefinition.titleProperty]=title
 row.setAttribute('data-inspector-values',JSON.stringify(data))
 tbody.appendChild(row)
+this.refreshSortable()
 this.selectRow(row,true)
 this.removeEmptyRow()
 this.updateScrollpads()}
@@ -5941,6 +5959,7 @@ tbody.removeChild(selectedRow)
 var newSelectedRow=nextRow?nextRow:prevRow
 if(newSelectedRow){this.selectRow(newSelectedRow)}
 else{tbody.appendChild(this.buildEmptyRow())}
+this.refreshSortable()
 this.updateScrollpads()}
 ObjectListEditor.prototype.applyDataToParentInspector=function(){var selectedRow=this.getSelectedRow(),tbody=this.getTableBody(),dataRows=tbody.querySelectorAll('tr[data-inspector-values]'),link=this.getLink(),result=this.getEmptyValue()
 if(selectedRow){if(!this.validateKeyValue()){return}
