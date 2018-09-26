@@ -382,7 +382,7 @@
             // Check whether this property is one that the titleProperty depends on and hence
             // may have caused an update to its value
             var titlePropertyItem = this.getItemProperty(this.propertyDefinition.titleProperty)
-            if (titlePropertyItem.depends.length > 0) {
+            if (titlePropertyItem.depends !== undefined && titlePropertyItem.depends.length > 0) {
                 for (var index = 0; index < titlePropertyItem.depends.length; index++) {
                     if (titlePropertyItem.depends[index] === property) {
                         property = this.propertyDefinition.titleProperty
